@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.8]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.9]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <style>
         body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
@@ -29,7 +29,7 @@
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.8]</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算ツール<br><span style="color: #e74c3c;">[Ver.9]</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -211,31 +211,60 @@
                 return;
             }
 
-            // 自動取得処理
+            // 国土地理院API URL
             const targetUrl = `https://vldb.gsi.go.jp/sokuchi/surveycalc/geoid/calcgh/cgi/geoidcalc.pl?outputType=json&datum=2&lat=${lat}&lon=${lon}`;
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
             
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error("Network Error");
-            const proxyData = await response.json();
-            const data = JSON.parse(proxyData.contents);
-            
-            if (data.OutputData && data.OutputData.geoidHeight) {
-                const geoidHeight = parseFloat(data.OutputData.geoidHeight);
+            let geoidHeight = null;
+
+            // プロキシ1: corsproxy.io
+            if (geoidHeight === null) {
+                try {
+                    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.OutputData && data.OutputData.geoidHeight) geoidHeight = parseFloat(data.OutputData.geoidHeight);
+                    }
+                } catch(e) { console.log("Proxy 1 failed"); }
+            }
+
+            // プロキシ2: allorigins.win (raw) - previous bug fix: use raw instead of get to avoid JSON parsing issues
+            if (geoidHeight === null) {
+                try {
+                    const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.OutputData && data.OutputData.geoidHeight) geoidHeight = parseFloat(data.OutputData.geoidHeight);
+                    }
+                } catch(e) { console.log("Proxy 2 failed"); }
+            }
+
+            // プロキシ3: codetabs
+            if (geoidHeight === null) {
+                try {
+                    const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.OutputData && data.OutputData.geoidHeight) geoidHeight = parseFloat(data.OutputData.geoidHeight);
+                    }
+                } catch(e) { console.log("Proxy 3 failed"); }
+            }
+
+            if (geoidHeight !== null && !isNaN(geoidHeight)) {
                 document.getElementById("res-geoid").innerText = geoidHeight.toFixed(3);
                 document.getElementById("geoid-source").innerText = "(自動取得)";
                 
                 const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
                 document.getElementById("res-height").innerText = finalHeight.toFixed(3);
             } else {
-                throw new Error("Geoid Data Not Found");
+                throw new Error("All proxies failed");
             }
+
         } catch (error) {
             console.error(error);
             document.getElementById("res-geoid").innerText = "取得エラー";
             document.getElementById("geoid-source").innerText = "手入力してください";
             document.getElementById("res-height").innerText = "計算不可";
-            alert("自動取得に失敗しました。「6. ジオイド高」を手入力して再度お試しください。");
+            alert("自動取得に失敗しました。企業のセキュリティ設定等で通信が遮断されている可能性があります。「6. ジオイド高」を手入力して再度お試しください。");
         }
     }
 </script>
