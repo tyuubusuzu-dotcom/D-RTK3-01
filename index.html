@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.22]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.23]</title>
     <!-- Leaflet CSS & JS (地図表示用) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -34,7 +34,7 @@
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.22] (緯度経度60進数・ジオイド完全連動版)</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.23] (JGD2011/2024 サーバー完全切替版)</span></h1>
 
     <div class="form-row">
         <div class="form-group">
@@ -178,10 +178,8 @@
                 return;
             }
 
-            // ★国土地理院APIパラメーター指定 (JGD2011は「2」、JGD2024は「3」)★
-            let datumVal = (geoidType === "JGD2024") ? "3" : "2";
-
-            const gasUrl = `https://script.google.com/macros/s/AKfycbxHsX5kTqdXhlZ9OVYbhkgH4YsAu35amq1gO4aJH0HirygY19y3q2erP8rmqXRiSn2EsA/exec?lat=${lat}&lon=${lon}&datum=${datumVal}`;
+            // 新しい切り替えパラメーター (geoidType) をGASに送信
+            const gasUrl = `https://script.google.com/macros/s/AKfycbxHsX5kTqdXhlZ9OVYbhkgH4YsAu35amq1gO4aJH0HirygY19y3q2erP8rmqXRiSn2EsA/exec?lat=${lat}&lon=${lon}&geoidType=${geoidType}`;
             
             try {
                 const response = await fetch(gasUrl);
@@ -191,7 +189,7 @@
                 
                 if (data.OutputData && data.OutputData.geoidHeight) {
                     const geoidHeight = parseFloat(data.OutputData.geoidHeight);
-                    document.getElementById("res-geoid").innerText = geoidHeight.toFixed(3);
+                    document.getElementById("res-geoid").innerText = geoidHeight.toFixed(4); // 少数第4位まで表示
                     document.getElementById("geoid-source").innerText = `(自動取得 - ${geoidType})`;
                     
                     const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
