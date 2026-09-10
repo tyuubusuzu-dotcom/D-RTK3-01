@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="ja">
+<!-- translate="no" でブラウザの勝手な自動翻訳を禁止 -->
+<html lang="ja" translate="no">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DJI D-RTK 3 公認キャリブレーション計算ツール [Ver.4]</title>
-<script src=" https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js "></script>
+<meta name="google" content="notranslate">
+<title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.5]</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 <style>
 body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
 .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -25,60 +27,60 @@ select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #cc
 .manual-highlight { background-color: #fff3cd; border: 1px solid #ffeeba; }
 </style>
 </head>
-<body>
+<body class="notranslate">
 
 <div class="container">
-<h1>DJI D-RTK 3 公認キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.4]</span></h1>
+<h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.5]</span></h1>
 
 <div class="form-group" style="margin-bottom: 20px;">
-<ラベル>1. 直平面角座標系</label>
+<label>1. 平面直角座標系</label>
 <select id="coordinate-system"></select>
 </div>
 
 <div class="switch-container">
 <div>
-<strong>３． 公認系の種類:</strong>
-<span id="coord-type-label" style="color: #c0392b; font-weight:old; margin-left: 10px;">測量座標系 (X=南北, Y=東西)</span>
+<strong>3. 座標系の種類:</strong>
+<span id="coord-type-label" style="color: #c0392b; font-weight: bold; margin-left: 10px;">測量座標系 (X=南北, Y=東西)</span>
 </div>
-<button type="button" class="btn btn-swap" onclick="toggleXY()">X/Y を置き換える</button>
+<button type="button" class="btn btn-swap" onclick="toggleXY()">X/Y を入れ替える</button>
 </div>
 
 <div class="form-row">
 <div class="form-group">
-<label id="label-x">2. X座標 [全域] (m)</label>
+<label id="label-x">2. X座標 [南北] (m)</label>
 <input type="number" id="input-x" step="0.001" placeholder="例: -142345.678">
 </div>
 <div class="form-group">
-<label id="label-y">2. Y水平 [東西] (m)</label>
+<label id="label-y">2. Y座標 [東西] (m)</label>
 <input type="number" id="input-y" step="0.001" placeholder="例: -23456.789">
 </div>
 </div>
 
 <div class="form-row">
 <div class="form-group">
-<ラベル>4. 標高 (m)</label>
+<label>4. 標高 (m)</label>
 <input type="number" id="input-h" step="0.001" placeholder="例: 150.123">
 </div>
 <div class="form-group">
-<ラベル>5. ジオイド高 (手入力用・m)</label>
-<input type="number" id="input-manual-geoid" class="manual-highlight" step="0.001" placeholder="※入力時に通信を行う優先計算">
+<label>5. ジオイド高 (手入力用・m)</label>
+<input type="number" id="input-manual-geoid" class="manual-highlight" step="0.001" placeholder="※入力すると通信を行わず優先計算">
 </div>
 </div>
 
 <div class="form-row">
 <div class="form-group">
-<ラベル>6. ジオイド種</label>
+<label>6. ジオイド種</label>
 <select id="geoid-type">
 <option value="JGD2011">JGD2011 (GSIGEO2011)</option>
 <option value="JGD2024">JGD2024 (GSIGEO2024)</option>
 </select>
 </div>
 <div class="form-group">
-<ラベル>7. アンテナポールたかさ</label>
+<label>7. アンテナポール高さ</label>
 <select id="pole-height">
-<option value="1.6">1.6m</option>
+<option value="1.6">1.6 m</option>
 <option value="1.8" selected>1.8 m</option>
-<option value="2.0">2.0m</option>
+<option value="2.0">2.0 m</option>
 </select>
 </div>
 </div>
@@ -94,7 +96,7 @@ select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #cc
 <div class="note">
 ※ 緯度経度は WGS84(JGD2011) に準拠します。<br>
 ※ DJI Pilot 2 入力用高さ = ジオイド高 ＋ 標高 ＋ ポール高さ ＋ アンテナ測定位置(0.102m)<br>
-※「5. 「ジオイド高」を手入力した場合は、国土地理院APIへの通信を行わずに即時計算します。
+※ 「5. ジオイド高」を手入力した場合は、国土地理院APIへの通信を行わず即時計算します。
 </div>
 </div>
 </div>
@@ -126,18 +128,16 @@ const systems = [
 const selectSystem = document.getElementById("coordinate-system");
 systems.forEach(sys => {
 let option = document.createElement("option");
-option.value = sys.id ;
-option.text = sys.name ;
-if ( sys.id === 6) option.selected = true; // 第6系を確実に固定
+option.value = sys.id;
+option.text = sys.name;
+if (sys.id === 6) option.selected = true; // 第6系デフォルト
 selectSystem.appendChild(option);
-試す {
-proj4.defs(`EPSG:${6668 + sys.id }`, `+proj=tmerc +lat_0=${sys.lat} +lon_0=${sys.lon} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`);
+try {
+proj4.defs(`EPSG:${6668 + sys.id}`, `+proj=tmerc +lat_0=${sys.lat} +lon_0=${sys.lon} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`);
 } catch(e) {}
 });
 
-// アンテナポール高も強制的に1.8mにする（キャッシュ対策）
 document.getElementById("pole-height").value = "1.8";
-
 updateLabels();
 };
 
@@ -151,13 +151,13 @@ const labelY = document.getElementById("label-y");
 if (isSurveyCoord) {
 typeLabel.innerText = "測量座標系 (X=南北, Y=東西)";
 typeLabel.style.color = "#c0392b";
-labelX.innerText = "2.X公認 [全域] (m)";
-labelY.innerText = "2.Y座標 [東西] (m)";
-} それ以外 {
-typeLabel.innerText = "数学公認系 (X=東西, Y=全域)";
+labelX.innerText = "2. X座標 [南北] (m)";
+labelY.innerText = "2. Y座標 [東西] (m)";
+} else {
+typeLabel.innerText = "数学座標系 (X=東西, Y=南北)";
 typeLabel.style.color = "#2980b9";
-labelX.innerText = "2. X 座標 [東西] (m)";
-labelY.innerText = "2.Y公認 [全域] (m)";
+labelX.innerText = "2. X座標 [東西] (m)";
+labelY.innerText = "2. Y座標 [南北] (m)";
 }
 }
 
@@ -171,7 +171,7 @@ xInput.value = yInput.value;
 yInput.value = temp;
 }
 
-非同期関数 calculate() {
+async function calculate() {
 const sysId = parseInt(document.getElementById("coordinate-system").value);
 let valX = parseFloat(document.getElementById("input-x").value);
 let valY = parseFloat(document.getElementById("input-y").value);
@@ -181,7 +181,7 @@ const poleHeight = parseFloat(document.getElementById("pole-height").value);
 
 if (isNaN(valX) || isNaN(valY) || isNaN(orthometricHeight)) {
 alert("X座標、Y座標、標高をすべて正しく入力してください。");
-戻る;
+return;
 }
 
 let easting = isSurveyCoord ? valY : valX;
@@ -189,7 +189,7 @@ let northing = isSurveyCoord ? valX : valY;
 const epsgSource = `EPSG:${6668 + sysId}`;
 const epsgDest = "EPSG:4326";
 
-試す {
+try {
 const resultLngLat = proj4(epsgSource, epsgDest, [easting, northing]);
 const lon = resultLngLat[0];
 const lat = resultLngLat[1];
@@ -197,27 +197,27 @@ const lat = resultLngLat[1];
 document.getElementById("res-lat").innerText = lat.toFixed(8);
 document.getElementById("res-lon").innerText = lon.toFixed(8);
 document.getElementById("res-geoid").innerText = "計算中...";
-document.getElementById("ジオイドソース").innerText = "";
+document.getElementById("geoid-source").innerText = "";
 document.getElementById("res-height").innerText = "-";
 document.getElementById("result-box").style.display = "block";
 
-// ★手入力されたジオイド高がある場合は、通信をスキップして即計算★
+// 手入力優先処理
 if (manualGeoidStr !== "") {
-const ManualGeoidHeight = parseFloat(manualGeoidStr);
-document.getElementById("res-geoid").innerText = ManualGeoidHeight.toFixed(3);
+const manualGeoidHeight = parseFloat(manualGeoidStr);
+document.getElementById("res-geoid").innerText = manualGeoidHeight.toFixed(3);
 document.getElementById("geoid-source").innerText = "(手入力)";
 
-const 最終高さ = 手動ジオイド高さ + オルソメトリック高さ + ポール高さ + 0.102;
+const finalHeight = manualGeoidHeight + orthometricHeight + poleHeight + 0.102;
 document.getElementById("res-height").innerText = finalHeight.toFixed(3);
-戻る; // ここで処理を終了
+return;
 }
 
-// 手入力がない場合は自動取得を試みる
-const targetUrl = ` https://vldb.gsi.go.jp/sokuchi/surveycalc/geoid/calcgh/cgi/geoidcalc.pl?outputType=json&datum=2&lat=${lat}&lon=${lon}` ;
-const proxyUrl = ` https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}` ;
+// 自動取得処理
+const targetUrl = `https://vldb.gsi.go.jp/sokuchi/surveycalc/geoid/calcgh/cgi/geoidcalc.pl?outputType=json&datum=2&lat=${lat}&lon=${lon}`;
+const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
 const response = await fetch(proxyUrl);
-if (!response.ok) throw new Error("ネットワークエラー");
+if (!response.ok) throw new Error("Network Error");
 const proxyData = await response.json();
 const data = JSON.parse(proxyData.contents);
 
@@ -226,17 +226,17 @@ const geoidHeight = parseFloat(data.OutputData.geoidHeight);
 document.getElementById("res-geoid").innerText = geoidHeight.toFixed(3);
 document.getElementById("geoid-source").innerText = "(自動取得)";
 
-const 最終高さ = ジオイド高さ + 海抜高さ + ポール高さ + 0.102;
+const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
 document.getElementById("res-height").innerText = finalHeight.toFixed(3);
-} それ以外 {
-throw new Error("ジオイドデータが見つかりません");
+} else {
+throw new Error("Geoid Data Not Found");
 }
 } catch (error) {
 console.error(error);
 document.getElementById("res-geoid").innerText = "取得エラー";
 document.getElementById("geoid-source").innerText = "手入力してください";
 document.getElementById("res-height").innerText = "計算不可";
-alert("自動取得に失敗しました。「5.ジオイド高」を手入力して再度試してください。");
+alert("自動取得に失敗しました。「5. ジオイド高」を手入力して再度お試しください。");
 }
 }
 </script>
