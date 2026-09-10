@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.14]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.15]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <style>
         body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
@@ -29,7 +29,7 @@
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.14]</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.15]</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -183,7 +183,7 @@
 
             const script = document.createElement('script');
             // 最新のGAS URL (/exec)
-            script.src = `https://script.google.com/macros/s/AKfycbxs7dMv3jUHlKWVzKCE8PO_1Cb9QEmz6EIaJaf3XFXWBvLliwrtQcKh81bRvSI0QOSoeQ/exec?lat=${lat}&lon=${lon}&callback=${callbackName}`;
+            script.src = `https://script.google.com/macros/s/AKfycbyj_Nuc5y5A6fK59umg91TP_Hez2Ol5aseork18j0zInqfsXz3uY0OlGxGBVWUXtGo/exec?lat=${lat}&lon=${lon}&callback=${callbackName}`;
             
             script.onerror = function() {
                 delete window[callbackName];
