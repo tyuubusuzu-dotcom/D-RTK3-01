@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.21]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.19]</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <!-- Leaflet CSS & JS (地図表示用) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -15,11 +17,11 @@
         .form-group { flex: 1; min-width: 250px; }
         label { display: block; font-weight: bold; margin-bottom: 5px; color: #34495e; font-size: 0.95rem; }
         select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ccd1d1; border-radius: 4px; box-sizing: border-box; font-size: 1rem; }
-        .dms-container { display: flex; gap: 5px; align-items: center; }
-        .dms-container input { width: 30%; }
-        .dms-label { font-size: 0.9rem; font-weight: bold; color: #7f8c8d; }
+        .switch-container { display: flex; align-items: center; justify-content: space-between; background: #eef2f5; padding: 12px; border-radius: 4px; margin-bottom: 20px; }
         .btn { background: #3498db; color: white; border: none; padding: 14px 20px; font-size: 1.1rem; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.2s; margin-top: 10px; }
         .btn:hover { background: #2980b9; }
+        .btn-swap { background: #34495e; padding: 8px 15px; font-size: 0.9rem; width: auto; margin: 0; }
+        .btn-swap:hover { background: #2c3e50; }
         .btn-map { background: #16a085; margin-top: 20px; }
         .btn-map:hover { background: #1abc9c; }
         .result-box { margin-top: 30px; padding: 20px; background: #e8f6f3; border-left: 5px solid #1abc9c; border-radius: 4px; display: none; }
@@ -27,54 +29,60 @@
         .result-value { font-weight: bold; color: #d35400; font-size: 1.3rem; margin-left: 10px; }
         .note { font-size: 0.85rem; color: #7f8c8d; margin-top: 10px; line-height: 1.4; }
         .manual-highlight { background-color: #fff3cd; border: 1px solid #ffeeba; }
+        /* 地図のスタイル */
         #map { height: 350px; width: 100%; margin-top: 15px; border-radius: 4px; display: none; z-index: 1; border: 1px solid #ccd1d1; }
     </style>
 </head>
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.21] (緯度経度60進数・ジオイド切替対応)</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.19]</span></h1>
+    
+    <div class="form-group" style="margin-bottom: 20px;">
+        <label>1. 平面直角座標系</label>
+        <select id="coordinate-system"></select>
+    </div>
+
+    <div class="switch-container">
+        <div>
+            <strong>2. 座標系の種類:</strong> 
+            <span id="coord-type-label" style="color: #c0392b; font-weight: bold; margin-left: 10px;">測量座標系 (X=南北, Y=東西)</span>
+        </div>
+        <button type="button" class="btn btn-swap" onclick="toggleXY()">X/Y を入れ替える</button>
+    </div>
 
     <div class="form-row">
         <div class="form-group">
-            <label>1. 緯度 (北緯)</label>
-            <div class="dms-container">
-                <input type="number" id="lat-deg" placeholder="度 (例: 34)"> <span class="dms-label">度</span>
-                <input type="number" id="lat-min" placeholder="分 (例: 39)"> <span class="dms-label">分</span>
-                <input type="number" id="lat-sec" step="0.0001" placeholder="秒 (例: 8.867)"> <span class="dms-label">秒</span>
-            </div>
+            <label id="label-x">3. X座標 [南北] (m)</label>
+            <input type="number" id="input-x" step="0.001" placeholder="例: -142345.678">
         </div>
         <div class="form-group">
-            <label>2. 経度 (東経)</label>
-            <div class="dms-container">
-                <input type="number" id="lon-deg" placeholder="度 (例: 135)"> <span class="dms-label">度</span>
-                <input type="number" id="lon-min" placeholder="分 (例: 31)"> <span class="dms-label">分</span>
-                <input type="number" id="lon-sec" step="0.0001" placeholder="秒 (例: 28.4508)"> <span class="dms-label">秒</span>
-            </div>
+            <label id="label-y">4. Y座標 [東西] (m)</label>
+            <input type="number" id="input-y" step="0.001" placeholder="例: -23456.789">
         </div>
     </div>
 
     <div class="form-row">
         <div class="form-group">
-            <label>3. 標高 (m)</label>
+            <label>5. 標高 (m)</label>
             <input type="number" id="input-h" step="0.001" placeholder="例: 150.123">
         </div>
         <div class="form-group">
-            <label>4. ジオイド高 (手入力用・m)</label>
+            <label>6. ジオイド高 (手入力用・m)</label>
             <input type="number" id="input-manual-geoid" class="manual-highlight" step="0.001" placeholder="※入力すると通信を行わず優先計算">
         </div>
     </div>
 
     <div class="form-row">
         <div class="form-group">
-            <label>5. ジオイド種</label>
+            <label>7. ジオイド種</label>
             <select id="geoid-type">
                 <option value="JGD2011">JGD2011 (GSIGEO2011)</option>
                 <option value="JGD2024">JGD2024 (GSIGEO2024)</option>
             </select>
         </div>
         <div class="form-group">
-            <label>6. アンテナポール高さ</label>
+            <label>8. アンテナポール高さ</label>
             <select id="pole-height">
                 <option value="1.6">1.6 m</option>
                 <option value="1.8" selected>1.8 m</option>
@@ -83,7 +91,7 @@
         </div>
     </div>
 
-    <button type="button" class="btn" onclick="calculate()">7. 変換 ＆ ジオイド高計算実行</button>
+    <button type="button" class="btn" onclick="calculate()">9. 変換 ＆ ジオイド高計算実行</button>
 
     <div class="result-box" id="result-box">
         <div class="result-item">緯度 (10進数): <span class="result-value" id="res-lat">-</span></div>
@@ -92,25 +100,99 @@
         <div class="result-item">ジオイド高: <span class="result-value" id="res-geoid">-</span> m <span id="geoid-source" style="font-size: 0.9rem; color: #7f8c8d; font-weight: normal;"></span></div>
         <div class="result-item">DJI Pilot 2 入力用高さ: <span class="result-value" id="res-height">-</span> m</div>
         <div class="note">
-            ※ 緯度経度は WGS84 に準拠します。<br>
+            ※ 緯度経度は WGS84(JGD2011) に準拠します。<br>
             ※ DJI Pilot 2 入力用高さ = ジオイド高 ＋ 標高 ＋ ポール高さ ＋ アンテナ測定位置(0.102m)<br>
             ※ 自社専用のGoogleサーバー(GAS)を経由して国土地理院APIから安定取得します。
         </div>
         
-        <button type="button" class="btn btn-map" id="map-toggle-btn" onclick="toggleMap()" style="display: none; width: 100%; text-align: center;">🗺️ 国土地理院地図で位置を確認する</button>
+        <!-- 地図表示ボタンと地図コンテナ -->
+        <button type="button" class="btn btn-swap btn-map" id="map-toggle-btn" onclick="toggleMap()" style="display: none; width: 100%; text-align: center;">🗺️ 国土地理院地図で位置を確認する</button>
         <div id="map"></div>
     </div>
 </div>
 
 <script>
+    window.onload = function() {
+        const systems = [
+            { id: 1, lat: 33, lon: 129.5, name: "第1系 (長崎・鹿児島西部など)" },
+            { id: 2, lat: 33, lon: 131.0, name: "第2系 (福岡・佐賀・熊本・大分など)" },
+            { id: 3, lat: 36, lon: 132.1666666666667, name: "第3系 (山口・島根・広島)" },
+            { id: 4, lat: 33, lon: 133.5, name: "第4系 (香川・愛媛・徳島・高知)" },
+            { id: 5, lat: 36, lon: 134.3333333333333, name: "第5系 (兵庫・鳥取・岡山)" },
+            { id: 6, lat: 36, lon: 136.0, name: "第6系 (京都・大阪・福井・滋賀・三重・奈良・和歌山)" },
+            { id: 7, lat: 36, lon: 137.1666666666667, name: "第7系 (石川・富山・岐阜・愛知)" },
+            { id: 8, lat: 36, lon: 138.5, name: "第8系 (新潟・長野・山梨・静岡)" },
+            { id: 9, lat: 36, lon: 139.8333333333333, name: "第9系 (東京・福島・栃木・茨城・埼玉・千葉・群馬・神奈川)" },
+            { id: 10, lat: 40, lon: 140.8333333333333, name: "第10系 (青森・秋田・山形・岩手・宮城)" },
+            { id: 11, lat: 44, lon: 140.25, name: "第11系 (北海道西部)" },
+            { id: 12, lat: 44, lon: 142.25, name: "第12系 (北海道中央部)" },
+            { id: 13, lat: 44, lon: 144.25, name: "第13系 (北海道東部)" },
+            { id: 14, lat: 26, lon: 142.0, name: "第14系 (小笠原諸島)" },
+            { id: 15, lat: 26, lon: 127.5, name: "第15系 (沖縄本島など)" },
+            { id: 16, lat: 26, lon: 124.0, name: "第16系 (先島諸島)" },
+            { id: 17, lat: 26, lon: 131.0, name: "第17系 (大東諸島)" },
+            { id: 18, lat: 20, lon: 136.0, name: "第18系 (沖ノ鳥島)" },
+            { id: 19, lat: 26, lon: 154.0, name: "第19系 (南鳥島)" }
+        ];
+
+        const selectSystem = document.getElementById("coordinate-system");
+        systems.forEach(sys => {
+            let option = document.createElement("option");
+            option.value = sys.id;
+            option.text = sys.name;
+            if (sys.id === 6) option.selected = true; 
+            selectSystem.appendChild(option);
+            try {
+                proj4.defs(`EPSG:${6668 + sys.id}`, `+proj=tmerc +lat_0=${sys.lat} +lon_0=${sys.lon} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`);
+            } catch(e) {}
+        });
+
+        document.getElementById("pole-height").value = "1.8";
+        updateLabels();
+    };
+
+    let isSurveyCoord = true; 
+
+    function updateLabels() {
+        const typeLabel = document.getElementById("coord-type-label");
+        const labelX = document.getElementById("label-x");
+        const labelY = document.getElementById("label-y");
+        
+        if (isSurveyCoord) {
+            typeLabel.innerText = "測量座標系 (X=南北, Y=東西)";
+            typeLabel.style.color = "#c0392b";
+            labelX.innerText = "3. X座標 [南北] (m)";
+            labelY.innerText = "4. Y座標 [東西] (m)";
+        } else {
+            typeLabel.innerText = "数学座標系 (X=東西, Y=南北)";
+            typeLabel.style.color = "#2980b9";
+            labelX.innerText = "3. X座標 [東西] (m)";
+            labelY.innerText = "4. Y座標 [南北] (m)";
+        }
+    }
+
+    function toggleXY() {
+        isSurveyCoord = !isSurveyCoord;
+        updateLabels();
+        let xInput = document.getElementById("input-x");
+        let yInput = document.getElementById("input-y");
+        let temp = xInput.value;
+        xInput.value = yInput.value;
+        yInput.value = temp;
+    }
+    
+    // --- 地図関連の処理 ---
     let map = null;
     let marker = null;
     let isMapVisible = false;
 
     function updateMap(lat, lon) {
+        // ズームレベル17は、およそ200m四方が見える縮尺です
         const zoomLevel = 17; 
+        
         if (!map) {
             map = L.map('map').setView([lat, lon], zoomLevel);
+            // 国土地理院の標準地図タイルを読み込む
             L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
                 attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院</a>",
                 maxZoom: 18
@@ -129,7 +211,10 @@
         if (isMapVisible) {
             mapDiv.style.display = 'block';
             btn.innerText = '🗺️ 地図を閉じる';
-            if (map) { setTimeout(() => map.invalidateSize(), 100); }
+            // display:none から復帰した際に地図が崩れないように再描画をかける
+            if (map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
         } else {
             mapDiv.style.display = 'none';
             btn.innerText = '🗺️ 国土地理院地図で位置を確認する';
@@ -137,27 +222,28 @@
     }
 
     async function calculate() {
-        let latDeg = document.getElementById("lat-deg").value;
-        let latMin = document.getElementById("lat-min").value;
-        let latSec = document.getElementById("lat-sec").value;
-        let lonDeg = document.getElementById("lon-deg").value;
-        let lonMin = document.getElementById("lon-min").value;
-        let lonSec = document.getElementById("lon-sec").value;
-
+        const sysId = parseInt(document.getElementById("coordinate-system").value);
+        let valX = parseFloat(document.getElementById("input-x").value);
+        let valY = parseFloat(document.getElementById("input-y").value);
         const orthometricHeight = parseFloat(document.getElementById("input-h").value);
         const manualGeoidStr = document.getElementById("input-manual-geoid").value;
         const poleHeight = parseFloat(document.getElementById("pole-height").value);
-        const geoidType = document.getElementById("geoid-type").value;
 
-        if (latDeg === "" || lonDeg === "" || isNaN(orthometricHeight)) {
-            alert("緯度(度)、経度(度)、標高は必ず正しく入力してください。");
+        if (isNaN(valX) || isNaN(valY) || isNaN(orthometricHeight)) {
+            alert("X座標、Y座標、標高をすべて正しく入力してください。");
             return;
         }
 
-        let lat = parseFloat(latDeg) + (parseFloat(latMin || 0) / 60) + (parseFloat(latSec || 0) / 3600);
-        let lon = parseFloat(lonDeg) + (parseFloat(lonMin || 0) / 60) + (parseFloat(lonSec || 0) / 3600);
-
+        let easting = isSurveyCoord ? valY : valX;
+        let northing = isSurveyCoord ? valX : valY;
+        const epsgSource = `EPSG:${6668 + sysId}`;
+        const epsgDest = "EPSG:4326"; 
+        
         try {
+            const resultLngLat = proj4(epsgSource, epsgDest, [easting, northing]);
+            const lon = resultLngLat[0];
+            const lat = resultLngLat[1];
+
             document.getElementById("res-lat").innerText = lat.toFixed(8);
             document.getElementById("res-lon").innerText = lon.toFixed(8);
             document.getElementById("res-geoid").innerText = "計算中...";
@@ -165,22 +251,23 @@
             document.getElementById("res-height").innerText = "-";
             document.getElementById("result-box").style.display = "block";
             
+            // 座標が確定した時点で地図ボタンを表示し、裏で地図を更新しておく
             document.getElementById("map-toggle-btn").style.display = "block";
             updateMap(lat, lon);
 
+            // 手入力優先処理
             if (manualGeoidStr !== "") {
                 const manualGeoidHeight = parseFloat(manualGeoidStr);
                 document.getElementById("res-geoid").innerText = manualGeoidHeight.toFixed(3);
                 document.getElementById("geoid-source").innerText = "(手入力)";
+                
                 const finalHeight = manualGeoidHeight + orthometricHeight + poleHeight + 0.102;
                 document.getElementById("res-height").innerText = finalHeight.toFixed(3);
                 return;
             }
 
-            // 国土地理院APIパラメーター: JGD2011は「2」、JGD2024は「3」を設定
-            let datumVal = (geoidType === "JGD2024") ? "3" : "2";
-
-            const gasUrl = `https://script.google.com/macros/s/AKfycbxHsX5kTqdXhlZ9OVYbhkgH4YsAu35amq1gO4aJH0HirygY19y3q2erP8rmqXRiSn2EsA/exec?lat=${lat}&lon=${lon}&datum=${datumVal}`;
+            // 鈴木様ご提供の最新GAS URL (/exec)
+            const gasUrl = `https://script.google.com/macros/s/AKfycbxHsX5kTqdXhlZ9OVYbhkgH4YsAu35amq1gO4aJH0HirygY19y3q2erP8rmqXRiSn2EsA/exec?lat=${lat}&lon=${lon}`;
             
             try {
                 const response = await fetch(gasUrl);
@@ -191,7 +278,7 @@
                 if (data.OutputData && data.OutputData.geoidHeight) {
                     const geoidHeight = parseFloat(data.OutputData.geoidHeight);
                     document.getElementById("res-geoid").innerText = geoidHeight.toFixed(3);
-                    document.getElementById("geoid-source").innerText = `(自動取得 - ${geoidType})`;
+                    document.getElementById("geoid-source").innerText = "(自動取得 - 会社専用サーバー経由)";
                     
                     const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
                     document.getElementById("res-height").innerText = finalHeight.toFixed(3);
@@ -210,6 +297,9 @@
 
         } catch (error) {
             console.error(error);
+            document.getElementById("res-geoid").innerText = "取得エラー";
+            document.getElementById("geoid-source").innerText = "手入力してください";
+            document.getElementById("res-height").innerText = "計算不可";
             alert("座標変換エラーが発生しました。");
         }
     }
