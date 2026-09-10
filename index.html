@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google" content="notranslate">
-<title>DJI D-RTK 3 公認キャリブレーション計算ツール [Ver.6]</title>
+<title>DJI D-RTK 3 公認キャリブレーション計算ツール [Ver.7]</title>
 <script src=" https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js "></script>
 <style>
 body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
@@ -29,7 +29,7 @@ select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #cc
 <body class="notranslate">
 
 <div class="container">
-<h1>DJI D-RTK 3 公認キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.6]</span></h1>
+<h1>DJI D-RTK 3 公認キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.7]</span></h1>
 
 <div class="form-group" style="margin-bottom: 20px;">
 <ラベル>1. 直平面角座標系</label>
@@ -129,7 +129,7 @@ systems.forEach(sys => {
 let option = document.createElement("option");
 option.value = sys.id ;
 option.text = sys.name ;
-if ( sys.id === 6) option.selected = true; // 第6系大丈夫
+if ( sys.id === 6) option.selected = true;
 selectSystem.appendChild(option);
 試す {
 proj4.defs(`EPSG:${6668 + sys.id }`, `+proj=tmerc +lat_0=${sys.lat} +lon_0=${sys.lon} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`);
