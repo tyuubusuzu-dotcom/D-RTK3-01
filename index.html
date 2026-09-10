@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.25]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.26]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <!-- Leaflet CSS & JS (地図表示用) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -29,14 +29,18 @@
         .result-value { font-weight: bold; color: #d35400; font-size: 1.3rem; margin-left: 10px; }
         .note { font-size: 0.85rem; color: #7f8c8d; margin-top: 10px; line-height: 1.4; }
         .manual-highlight { background-color: #fff3cd; border: 1px solid #ffeeba; }
-        /* 地図のスタイル */
-        #map { height: 350px; width: 100%; margin-top: 15px; border-radius: 4px; display: none; z-index: 1; border: 1px solid #ccd1d1; }
+        
+        /* 地図関連のスタイル */
+        #map-container { position: relative; display: none; margin-top: 15px; }
+        #map { height: 350px; width: 100%; border-radius: 4px; z-index: 1; border: 1px solid #ccd1d1; }
+        .map-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; font-size: 24px; color: #e74c3c; font-weight: bold; text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
+        .elevation-display { position: absolute; bottom: 15px; left: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 8px 12px; border-radius: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); font-size: 0.95rem; font-weight: bold; color: #2c3e50; border: 1px solid #bdc3c7; }
     </style>
 </head>
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.25] (平面直角座標・ジオイド完全連動版)</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.26] (平面直角・標高マップ連動版)</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -107,7 +111,11 @@
         
         <!-- 地図表示ボタンと地図コンテナ -->
         <button type="button" class="btn btn-swap btn-map" id="map-toggle-btn" onclick="toggleMap()" style="display: none; width: 100%; text-align: center;">🗺️ 国土地理院地図で位置を確認する</button>
-        <div id="map"></div>
+        <div id="map-container">
+            <div id="map"></div>
+            <div class="map-crosshair">＋</div>
+            <div class="elevation-display" id="center-elevation">中心標高: 取得中...</div>
+        </div>
     </div>
 </div>
 
@@ -186,6 +194,30 @@
     let marker = null;
     let isMapVisible = false;
 
+    // 国土地理院の標高APIを呼び出す関数
+    function fetchCenterElevation() {
+        if (!map) return;
+        const center = map.getCenter();
+        const eleDisplay = document.getElementById('center-elevation');
+        eleDisplay.innerText = '中心標高: 取得中...';
+
+        const url = `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${center.lng}&lat=${center.lat}&outtype=JSON`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.elevation !== undefined && data.elevation !== null && data.elevation !== '-----') {
+                    eleDisplay.innerText = `中心標高: ${parseFloat(data.elevation).toFixed(2)} m`;
+                } else {
+                    eleDisplay.innerText = `中心標高: データなし (海など)`;
+                }
+            })
+            .catch(err => {
+                console.error('Elevation API Error:', err);
+                eleDisplay.innerText = `中心標高: 取得エラー`;
+            });
+    }
+
     function updateMap(lat, lon) {
         const zoomLevel = 17; 
         
@@ -196,24 +228,33 @@
                 maxZoom: 18
             }).addTo(map);
             marker = L.marker([lat, lon]).addTo(map);
+
+            // 地図の移動（ドラッグ、ズームなど）が終わるたびに標高を再取得するイベントを追加
+            map.on('moveend', fetchCenterElevation);
         } else {
             map.setView([lat, lon], zoomLevel);
             marker.setLatLng([lat, lon]);
         }
+        
+        // 座標確定時に一度標高を取得しておく
+        fetchCenterElevation();
     }
 
     function toggleMap() {
         isMapVisible = !isMapVisible;
-        const mapDiv = document.getElementById('map');
+        const mapContainer = document.getElementById('map-container');
         const btn = document.getElementById('map-toggle-btn');
         if (isMapVisible) {
-            mapDiv.style.display = 'block';
+            mapContainer.style.display = 'block';
             btn.innerText = '🗺️ 地図を閉じる';
             if (map) {
-                setTimeout(() => map.invalidateSize(), 100);
+                setTimeout(() => {
+                    map.invalidateSize();
+                    fetchCenterElevation(); // 表示が崩れないように再取得
+                }, 100);
             }
         } else {
-            mapDiv.style.display = 'none';
+            mapContainer.style.display = 'none';
             btn.innerText = '🗺️ 国土地理院地図で位置を確認する';
         }
     }
