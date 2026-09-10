@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.18]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.19]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <!-- Leaflet CSS & JS (地図表示用) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -19,17 +22,21 @@
         .btn:hover { background: #2980b9; }
         .btn-swap { background: #34495e; padding: 8px 15px; font-size: 0.9rem; width: auto; margin: 0; }
         .btn-swap:hover { background: #2c3e50; }
+        .btn-map { background: #16a085; margin-top: 20px; }
+        .btn-map:hover { background: #1abc9c; }
         .result-box { margin-top: 30px; padding: 20px; background: #e8f6f3; border-left: 5px solid #1abc9c; border-radius: 4px; display: none; }
         .result-item { margin-bottom: 10px; font-size: 1.1rem; }
         .result-value { font-weight: bold; color: #d35400; font-size: 1.3rem; margin-left: 10px; }
         .note { font-size: 0.85rem; color: #7f8c8d; margin-top: 10px; line-height: 1.4; }
         .manual-highlight { background-color: #fff3cd; border: 1px solid #ffeeba; }
+        /* 地図のスタイル */
+        #map { height: 350px; width: 100%; margin-top: 15px; border-radius: 4px; display: none; z-index: 1; border: 1px solid #ccd1d1; }
     </style>
 </head>
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.18]</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.19]</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -97,6 +104,10 @@
             ※ DJI Pilot 2 入力用高さ = ジオイド高 ＋ 標高 ＋ ポール高さ ＋ アンテナ測定位置(0.102m)<br>
             ※ 自社専用のGoogleサーバー(GAS)を経由して国土地理院APIから安定取得します。
         </div>
+        
+        <!-- 地図表示ボタンと地図コンテナ -->
+        <button type="button" class="btn btn-swap btn-map" id="map-toggle-btn" onclick="toggleMap()" style="display: none; width: 100%; text-align: center;">🗺️ 国土地理院地図で位置を確認する</button>
+        <div id="map"></div>
     </div>
 </div>
 
@@ -104,7 +115,7 @@
     window.onload = function() {
         const systems = [
             { id: 1, lat: 33, lon: 129.5, name: "第1系 (長崎・鹿児島西部など)" },
-            { id: 2, lat: 33, lon: 131.0, name: "第2系 (福岡・佐賀・ টালি・大分など)" },
+            { id: 2, lat: 33, lon: 131.0, name: "第2系 (福岡・佐賀・熊本・大分など)" },
             { id: 3, lat: 36, lon: 132.1666666666667, name: "第3系 (山口・島根・広島)" },
             { id: 4, lat: 33, lon: 133.5, name: "第4系 (香川・愛媛・徳島・高知)" },
             { id: 5, lat: 36, lon: 134.3333333333333, name: "第5系 (兵庫・鳥取・岡山)" },
@@ -169,6 +180,46 @@
         xInput.value = yInput.value;
         yInput.value = temp;
     }
+    
+    // --- 地図関連の処理 ---
+    let map = null;
+    let marker = null;
+    let isMapVisible = false;
+
+    function updateMap(lat, lon) {
+        // ズームレベル17は、およそ200m四方が見える縮尺です
+        const zoomLevel = 17; 
+        
+        if (!map) {
+            map = L.map('map').setView([lat, lon], zoomLevel);
+            // 国土地理院の標準地図タイルを読み込む
+            L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+                attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院</a>",
+                maxZoom: 18
+            }).addTo(map);
+            marker = L.marker([lat, lon]).addTo(map);
+        } else {
+            map.setView([lat, lon], zoomLevel);
+            marker.setLatLng([lat, lon]);
+        }
+    }
+
+    function toggleMap() {
+        isMapVisible = !isMapVisible;
+        const mapDiv = document.getElementById('map');
+        const btn = document.getElementById('map-toggle-btn');
+        if (isMapVisible) {
+            mapDiv.style.display = 'block';
+            btn.innerText = '🗺️ 地図を閉じる';
+            // display:none から復帰した際に地図が崩れないように再描画をかける
+            if (map) {
+                setTimeout(() => map.invalidateSize(), 100);
+            }
+        } else {
+            mapDiv.style.display = 'none';
+            btn.innerText = '🗺️ 国土地理院地図で位置を確認する';
+        }
+    }
 
     async function calculate() {
         const sysId = parseInt(document.getElementById("coordinate-system").value);
@@ -199,6 +250,10 @@
             document.getElementById("geoid-source").innerText = "";
             document.getElementById("res-height").innerText = "-";
             document.getElementById("result-box").style.display = "block";
+            
+            // 座標が確定した時点で地図ボタンを表示し、裏で地図を更新しておく
+            document.getElementById("map-toggle-btn").style.display = "block";
+            updateMap(lat, lon);
 
             // 手入力優先処理
             if (manualGeoidStr !== "") {
@@ -215,7 +270,6 @@
             const gasUrl = `https://script.google.com/macros/s/AKfycbxHsX5kTqdXhlZ9OVYbhkgH4YsAu35amq1gO4aJH0HirygY19y3q2erP8rmqXRiSn2EsA/exec?lat=${lat}&lon=${lon}`;
             
             try {
-                // シンプルなFetch APIによる通信（デプロイ設定が「全員」ならこれで通ります）
                 const response = await fetch(gasUrl);
                 if (!response.ok) throw new Error("GAS Network Error");
                 
@@ -229,7 +283,6 @@
                     const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
                     document.getElementById("res-height").innerText = finalHeight.toFixed(3);
                 } else if (data.ExportData && data.ExportData.ErrMsg) {
-                    // 国土地理院からのエラーメッセージをキャッチ
                     throw new Error("国土地理院APIエラー: " + data.ExportData.ErrMsg);
                 } else {
                     throw new Error("Invalid Data from GAS");
