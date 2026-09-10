@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.12]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.14]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <style>
         body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
@@ -29,7 +29,7 @@
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.12]</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.14]</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -169,6 +169,31 @@
         xInput.value = yInput.value;
         yInput.value = temp;
     }
+    
+    // GASをJSONPで呼び出してSafariのCORS/リダイレクトブロックを回避する関数
+    function fetchGasJSONP(lat, lon) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'gas_callback_' + Math.round(100000 * Math.random());
+            
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+
+            const script = document.createElement('script');
+            // 最新のGAS URL (/exec)
+            script.src = `https://script.google.com/macros/s/AKfycbxs7dMv3jUHlKWVzKCE8PO_1Cb9QEmz6EIaJaf3XFXWBvLliwrtQcKh81bRvSI0QOSoeQ/exec?lat=${lat}&lon=${lon}&callback=${callbackName}`;
+            
+            script.onerror = function() {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error("GAS JSONP Request Failed"));
+            };
+            
+            document.body.appendChild(script);
+        });
+    }
 
     async function calculate() {
         const sysId = parseInt(document.getElementById("coordinate-system").value);
@@ -211,16 +236,10 @@
                 return;
             }
 
-            // ★修正ポイント: /dev を /exec に置き換えて通信します★
-            const gasUrl = `https://script.google.com/macros/s/AKfycbxjMuTTeD-BjBnWmX0MhOsMfa0-WhBHY314MzKscDuh/exec?lat=${lat}&lon=${lon}`;
-            
+            // JSONPによるGAS通信
             try {
-                const response = await fetch(gasUrl);
-                if (!response.ok) throw new Error("GAS Network Error");
-                
-                const data = await response.json();
-                
-                if (data.OutputData && data.OutputData.geoidHeight) {
+                const data = await fetchGasJSONP(lat, lon);
+                if (data && data.OutputData && data.OutputData.geoidHeight) {
                     const geoidHeight = parseFloat(data.OutputData.geoidHeight);
                     document.getElementById("res-geoid").innerText = geoidHeight.toFixed(3);
                     document.getElementById("geoid-source").innerText = "(自動取得 - 会社専用サーバー経由)";
@@ -240,7 +259,7 @@
             document.getElementById("res-geoid").innerText = "取得エラー";
             document.getElementById("geoid-source").innerText = "手入力してください";
             document.getElementById("res-height").innerText = "計算不可";
-            alert("通信エラーが発生しました。「6. ジオイド高」を手入力して計算してください。");
+            alert("Googleサーバーのアクセス権限エラー、または通信エラーです。「6. ジオイド高」を手入力するか、Google側のデプロイ設定(全員アクセス許可)をご確認ください。");
         }
     }
 </script>
