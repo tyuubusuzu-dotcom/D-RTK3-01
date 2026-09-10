@@ -70,7 +70,8 @@ select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #cc
 <ラベル>7. アンテナポールたかさ</label>
 <select id="pole-height">
 <option value="1.6">1.6m</option>
-<option value="1.8">1.8m</option>
+<!-- 1.8mに選択を追加して自信化 -->
+<option value="1.8" selected>1.8 m</option>
 <option value="2.0">2.0m</option>
 </select>
 </div>
@@ -93,6 +94,8 @@ select, input[type="number"] { width: 100%; padding: 10px; border: 1px solid #cc
 </div>
 
 <script>
+// 画面が完全に読み取られてから動作を開始するよう修正（エラー防止）
+window.onload = function() {
 const systems = [
 { id: 1, lat: 33, lon: 129.5, name: "第1系 (長崎・鹿児島西部など)" },
 { id: 2, lat: 33, lon: 131.0, name: "第2系 (福岡・佐賀・熊本・大分など)" },
@@ -120,9 +123,22 @@ systems.forEach(sys => {
 let option = document.createElement("option");
 option.value = sys.id ;
 option.text = sys.name ;
+
+// 第6系を無事（初期選択）にする
+if ( sys.id === 6) {
+option.selected = true;
+}
+
 selectSystem.appendChild(option);
+試す {
 proj4.defs(`EPSG:${6668 + sys.id }`, `+proj=tmerc +lat_0=${sys.lat} +lon_0=${sys.lon} +k=0.9999 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs`);
+} catch(e) {
+console.error("Proj4エラー:", e);
+}
 });
+
+updateLabels();
+};
 
 let isSurveyCoord = true;
 
@@ -154,7 +170,6 @@ let temp = xInput.value;
 xInput.value = yInput.value;
 yInput.value = temp;
 }
-updateLabels();
 
 非同期関数 calculate() {
 const sysId = parseInt(document.getElementById("coordinate-system").value);
@@ -174,6 +189,7 @@ let northing = isSurveyCoord ? valX : valY;
 const epsgSource = `EPSG:${6668 + sysId}`;
 const epsgDest = "EPSG:4326";
 
+試す {
 const resultLngLat = proj4(epsgSource, epsgDest, [easting, northing]);
 const lon = resultLngLat[0];
 const lat = resultLngLat[1];
@@ -184,10 +200,10 @@ document.getElementById("res-geoid").innerText = "計算中...";
 document.getElementById("res-height").innerText = "-";
 document.getElementById("result-box").style.display = "block";
 
+// 国土地理院APIとプロキシ
 const targetUrl = ` https://vldb.gsi.go.jp/sokuchi/surveycalc/geoid/calcgh/cgi/geoidcalc.pl?outputType=json&datum=2&lat=${lat}&lon=${lon}` ;
 const proxyUrl = ` https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}` ;
 
-試す {
 const response = await fetch(proxyUrl);
 if (!response.ok) throw new Error("ネットワークエラー");
 const proxyData = await response.json();
@@ -207,7 +223,7 @@ throw new Error("ジオイドデータが見つかりません");
 console.error(error);
 document.getElementById("res-geoid").innerText = "取得エラー";
 document.getElementById("res-height").innerText = "計算不可";
-alert("ジオイド高の取得に失敗しました。インターネット接続を確認してください。");
+alert("通信エラーが発生しました。");
 }
 }
 </script>
