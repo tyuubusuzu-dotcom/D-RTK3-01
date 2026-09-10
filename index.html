@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.19]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.25]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <!-- Leaflet CSS & JS (地図表示用) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -36,7 +36,7 @@
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.19]</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.25] (平面直角座標・ジオイド完全連動版)</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -100,7 +100,7 @@
         <div class="result-item">ジオイド高: <span class="result-value" id="res-geoid">-</span> m <span id="geoid-source" style="font-size: 0.9rem; color: #7f8c8d; font-weight: normal;"></span></div>
         <div class="result-item">DJI Pilot 2 入力用高さ: <span class="result-value" id="res-height">-</span> m</div>
         <div class="note">
-            ※ 緯度経度は WGS84(JGD2011) に準拠します。<br>
+            ※ 緯度経度は WGS84 に準拠します。<br>
             ※ DJI Pilot 2 入力用高さ = ジオイド高 ＋ 標高 ＋ ポール高さ ＋ アンテナ測定位置(0.102m)<br>
             ※ 自社専用のGoogleサーバー(GAS)を経由して国土地理院APIから安定取得します。
         </div>
@@ -187,12 +187,10 @@
     let isMapVisible = false;
 
     function updateMap(lat, lon) {
-        // ズームレベル17は、およそ200m四方が見える縮尺です
         const zoomLevel = 17; 
         
         if (!map) {
             map = L.map('map').setView([lat, lon], zoomLevel);
-            // 国土地理院の標準地図タイルを読み込む
             L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
                 attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>国土地理院</a>",
                 maxZoom: 18
@@ -211,7 +209,6 @@
         if (isMapVisible) {
             mapDiv.style.display = 'block';
             btn.innerText = '🗺️ 地図を閉じる';
-            // display:none から復帰した際に地図が崩れないように再描画をかける
             if (map) {
                 setTimeout(() => map.invalidateSize(), 100);
             }
@@ -228,6 +225,7 @@
         const orthometricHeight = parseFloat(document.getElementById("input-h").value);
         const manualGeoidStr = document.getElementById("input-manual-geoid").value;
         const poleHeight = parseFloat(document.getElementById("pole-height").value);
+        const geoidType = document.getElementById("geoid-type").value;
 
         if (isNaN(valX) || isNaN(valY) || isNaN(orthometricHeight)) {
             alert("X座標、Y座標、標高をすべて正しく入力してください。");
@@ -251,11 +249,9 @@
             document.getElementById("res-height").innerText = "-";
             document.getElementById("result-box").style.display = "block";
             
-            // 座標が確定した時点で地図ボタンを表示し、裏で地図を更新しておく
             document.getElementById("map-toggle-btn").style.display = "block";
             updateMap(lat, lon);
 
-            // 手入力優先処理
             if (manualGeoidStr !== "") {
                 const manualGeoidHeight = parseFloat(manualGeoidStr);
                 document.getElementById("res-geoid").innerText = manualGeoidHeight.toFixed(3);
@@ -266,8 +262,8 @@
                 return;
             }
 
-            // 鈴木様ご提供の最新GAS URL (/exec)
-            const gasUrl = `https://script.google.com/macros/s/AKfycbxHsX5kTqdXhlZ9OVYbhkgH4YsAu35amq1gO4aJH0HirygY19y3q2erP8rmqXRiSn2EsA/exec?lat=${lat}&lon=${lon}`;
+            // 新しいGAS URLとgeoidTypeパラメータを使用
+            const gasUrl = `https://script.google.com/macros/s/AKfycbxe-m9455CrJAetr8mV_RxVvSEwV4jlPJlNZYCpkZSFI-Jbjkb1uS_kM9VR3MlDIHUD_Q/exec?lat=${lat}&lon=${lon}&geoidType=${geoidType}`;
             
             try {
                 const response = await fetch(gasUrl);
@@ -277,8 +273,8 @@
                 
                 if (data.OutputData && data.OutputData.geoidHeight) {
                     const geoidHeight = parseFloat(data.OutputData.geoidHeight);
-                    document.getElementById("res-geoid").innerText = geoidHeight.toFixed(3);
-                    document.getElementById("geoid-source").innerText = "(自動取得 - 会社専用サーバー経由)";
+                    document.getElementById("res-geoid").innerText = geoidHeight.toFixed(4); // 少数第4位まで表示
+                    document.getElementById("geoid-source").innerText = `(自動取得 - ${geoidType})`;
                     
                     const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
                     document.getElementById("res-height").innerText = finalHeight.toFixed(3);
