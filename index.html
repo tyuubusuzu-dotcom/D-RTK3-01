@@ -4,12 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.28]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.30]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
+        body { font-family: 'Segoe UI', Meiryo, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; margin: 0; }
+        
+        /* ロック画面のスタイル */
+        #lock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .lock-box { background: white; padding: 40px 30px; border-radius: 8px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 85%; max-width: 400px; box-sizing: border-box; }
+        .lock-box h2 { margin-top: 0; color: #2c3e50; font-size: 1.4rem; margin-bottom: 20px; }
+        .lock-box input[type="password"] { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccd1d1; border-radius: 4px; font-size: 1.1rem; box-sizing: border-box; text-align: center; letter-spacing: 2px; }
+        .lock-box button { background: #3498db; color: white; border: none; padding: 12px 20px; font-size: 1.1rem; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; transition: background 0.2s; }
+        .lock-box button:hover { background: #2980b9; }
+        #pass-error { color: #e74c3c; display: none; font-size: 0.95rem; font-weight: bold; margin-top: 15px; }
+
+        /* メインツールのスタイル */
         .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         h1 { font-size: 1.3rem; text-align: center; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 15px; margin-bottom: 25px; line-height: 1.4; }
         .form-row { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
@@ -40,8 +51,18 @@
 </head>
 <body class="notranslate">
 
+<!-- 簡易ロック画面 -->
+<div id="lock-screen">
+    <div class="lock-box">
+        <h2>🔒 ツールにログイン</h2>
+        <input type="password" id="pass-input" placeholder="パスワードを入力">
+        <button onclick="checkPassword()">ログイン</button>
+        <p id="pass-error">パスワードが間違っています</p>
+    </div>
+</div>
+
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.28] (平面直角・標高マップ連動版)</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.30] (平面直角・標高マップ連動・ロック版)</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -123,6 +144,23 @@
 </div>
 
 <script>
+    // --- パスワード解除処理 ---
+    function checkPassword() {
+        var input = document.getElementById('pass-input').value;
+        if (input === "123456") {
+            document.getElementById('lock-screen').style.display = 'none';
+        } else {
+            document.getElementById('pass-error').style.display = 'block';
+        }
+    }
+
+    // エンターキーでも解除できるようにする
+    document.getElementById('pass-input').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            checkPassword();
+        }
+    });
+
     window.onload = function() {
         const systems = [
             { id: 1, lat: 33, lon: 129.5, name: "第1系 (長崎・鹿児島西部など)" },
