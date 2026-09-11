@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.26]</title>
+    <title>DJI D-RTK 3 座標キャリブレーション計算ツール [Ver.27]</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-    <!-- Leaflet CSS & JS (地図表示用) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -30,7 +29,6 @@
         .note { font-size: 0.85rem; color: #7f8c8d; margin-top: 10px; line-height: 1.4; }
         .manual-highlight { background-color: #fff3cd; border: 1px solid #ffeeba; }
         
-        /* 地図関連のスタイル */
         #map-container { position: relative; display: none; margin-top: 15px; }
         #map { height: 350px; width: 100%; border-radius: 4px; z-index: 1; border: 1px solid #ccd1d1; }
         .map-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; font-size: 24px; color: #e74c3c; font-weight: bold; text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
@@ -40,7 +38,7 @@
 <body class="notranslate">
 
 <div class="container">
-    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.26] (平面直角・標高マップ連動版)</span></h1>
+    <h1>DJI D-RTK 3 座標キャリブレーション計算フォーム<br><span style="color: #e74c3c;">[Ver.27] (平面直角・標高マップ連動版)</span></h1>
     
     <div class="form-group" style="margin-bottom: 20px;">
         <label>1. 平面直角座標系</label>
@@ -109,7 +107,6 @@
             ※ 自社専用のGoogleサーバー(GAS)を経由して国土地理院APIから安定取得します。
         </div>
         
-        <!-- 地図表示ボタンと地図コンテナ -->
         <button type="button" class="btn btn-swap btn-map" id="map-toggle-btn" onclick="toggleMap()" style="display: none; width: 100%; text-align: center;">🗺️ 国土地理院地図で位置を確認する</button>
         <div id="map-container">
             <div id="map"></div>
@@ -193,8 +190,9 @@
     let map = null;
     let marker = null;
     let isMapVisible = false;
+    let currentLat = null;
+    let currentLon = null;
 
-    // 国土地理院の標高APIを呼び出す関数
     function fetchCenterElevation() {
         if (!map) return;
         const center = map.getCenter();
@@ -219,6 +217,8 @@
     }
 
     function updateMap(lat, lon) {
+        currentLat = lat;
+        currentLon = lon;
         const zoomLevel = 17; 
         
         if (!map) {
@@ -229,14 +229,12 @@
             }).addTo(map);
             marker = L.marker([lat, lon]).addTo(map);
 
-            // 地図の移動（ドラッグ、ズームなど）が終わるたびに標高を再取得するイベントを追加
             map.on('moveend', fetchCenterElevation);
         } else {
             map.setView([lat, lon], zoomLevel);
             marker.setLatLng([lat, lon]);
         }
         
-        // 座標確定時に一度標高を取得しておく
         fetchCenterElevation();
     }
 
@@ -247,10 +245,12 @@
         if (isMapVisible) {
             mapContainer.style.display = 'block';
             btn.innerText = '🗺️ 地図を閉じる';
-            if (map) {
+            if (map && currentLat !== null && currentLon !== null) {
+                // 地図が表示された直後に、強制的に正しい座標へ中心を合わせ直す
                 setTimeout(() => {
                     map.invalidateSize();
-                    fetchCenterElevation(); // 表示が崩れないように再取得
+                    map.setView([currentLat, currentLon]);
+                    fetchCenterElevation();
                 }, 100);
             }
         } else {
@@ -303,7 +303,6 @@
                 return;
             }
 
-            // 新しいGAS URLとgeoidTypeパラメータを使用
             const gasUrl = `https://script.google.com/macros/s/AKfycbxe-m9455CrJAetr8mV_RxVvSEwV4jlPJlNZYCpkZSFI-Jbjkb1uS_kM9VR3MlDIHUD_Q/exec?lat=${lat}&lon=${lon}&geoidType=${geoidType}`;
             
             try {
@@ -314,7 +313,7 @@
                 
                 if (data.OutputData && data.OutputData.geoidHeight) {
                     const geoidHeight = parseFloat(data.OutputData.geoidHeight);
-                    document.getElementById("res-geoid").innerText = geoidHeight.toFixed(4); // 少数第4位まで表示
+                    document.getElementById("res-geoid").innerText = geoidHeight.toFixed(4);
                     document.getElementById("geoid-source").innerText = `(自動取得 - ${geoidType})`;
                     
                     const finalHeight = geoidHeight + orthometricHeight + poleHeight + 0.102;
